@@ -3,6 +3,50 @@
 League: Yahoo fantasy basketball, 11-category head-to-head, auction draft,
 no waivers, unlimited moves.
 
+## League settings
+
+- 12 teams, $200 auction budget each ($2,400 total in the room)
+- Categories (11): FGM, FG%, FT%, 3PM, PTS, OREB, DREB, AST, STL, BLK, A/T
+- Roster slots, IL slots, and weekly lineup rules: still to confirm (read
+  from Yahoo league settings in Phase 0)
+
+## What this category set does to player value
+
+This is not the standard 9-cat list, so generic rankings and dollar values
+from the usual sites are wrong for this league. Specifics:
+
+- **Three ratio categories (FG%, FT%, A/T).** Each must be volume-weighted.
+  A player's FG% impact is roughly `FGM - league_avg_FG% * FGA`, FT% likewise,
+  and A/T impact is roughly `AST - league_avg_ratio * TOV`. A low-usage player
+  with a pretty ratio barely moves the needle; a high-volume player moves it
+  a lot in either direction.
+- **No standalone TO category, but A/T punishes turnovers.** Turnover-prone
+  bigs and ball-dominant scorers with low assist counts get hit here, while
+  pass-first guards get a boost that 9-cat rankings do not show.
+- **FGM + FG% + PTS triple-counts efficient volume scoring.** High-usage,
+  high-FG% players (mostly interior scorers) gain value; inefficient volume
+  scorers lose it.
+- **REB split into OREB and DREB double-weights rebounding.** OREB is scarce
+  and concentrated in a small set of bigs, so it behaves like a premium
+  category. DREB is spread more widely.
+- **Rough positional lean.** Bigs own FGM, FG%, OREB, DREB, BLK (5). Guards
+  own 3PM, AST, STL, A/T, FT% (5). PTS is neutral. Builds that lean one way
+  and punt one or two categories on the other side are natural here:
+  big-heavy punting FT% and A/T, or guard-heavy punting OREB and BLK.
+- **Streaming has a cost in ratio categories.** Adding games adds counting
+  stats, but a streamer with poor FG%, FT%, or A/T can flip a close ratio
+  category. The streaming recommender must score pickups on net category
+  impact for this week's matchup, not raw production.
+
+## Auction math
+
+- $2,400 total. With N roster slots per team, reserve $1 x 12 x N as the
+  floor and distribute the remaining dollars in proportion to value above
+  replacement. With 13 slots that is $156 reserved and $2,244 to allocate.
+- Track inflation live: remaining dollars in the room divided by remaining
+  projected value of the draftable pool. Recompute after every pick.
+- Nominations: lead with players you do not want who will cost others money.
+
 ## What the format rewards
 
 - **Auction draft**: value is dollars, not ADP. Need a projection -> value
@@ -75,9 +119,7 @@ no waivers, unlimited moves.
 
 ## Open questions
 
-1. Which 11 categories? (Standard 9 plus two of: 3PT%, OREB, DREB, DD, A/T,
-   FGM, FTM, ...)
-2. League size, auction budget, roster slots, IL slots?
-3. Has this year's draft already happened?
-4. Yahoo Dev app registered? Any preference for Python vs. TypeScript?
-5. Preferred projection source, or build from stats only?
+1. Roster slots and IL slots?
+2. Has this year's draft already happened?
+3. Yahoo Dev app registered? Any preference for Python vs. TypeScript?
+4. Preferred projection source, or build from stats only?
