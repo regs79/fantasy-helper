@@ -95,9 +95,41 @@ outside the pool) shares the money left after $1 per slot; floor $1.
 
 ## Yahoo
 
-Register an app at <https://developer.yahoo.com/apps/> (Fantasy Sports, read
-access; redirect can be left for the out-of-band flow). Put the client id
-and secret in `.env`, then:
+### Getting API access (2026)
+
+Yahoo no longer self-serves Fantasy Sports API access. OAuth works for any
+app, but every Fantasy endpoint answers `403 This application is not
+authorized to perform this action` until the app is approved through
+Yahoo's access program (enforced since 2026-07-22; the "Fantasy Sports"
+permission is gone from the create-app form, and older apps that had it,
+including read/write ones, were cut off too). Verified here on 2026-10-15
+with two pre-existing apps. The client prints this explanation on that 403.
+
+1. Apply at <https://sports.yahoo.com/developer/access/> with the Client
+   ID of the app you want approved.
+2. Sign the DocuSign "API Access and Use Agreement" Yahoo sends.
+3. Submit the Client ID at
+   <https://sports.yahoo.com/developer/application-confirmation/>.
+4. Reports say apps created before the account was approved sometimes
+   need to be recreated afterwards; if so, put the new id and secret in
+   `.env` and run `./fh yahoo auth` again (tokens are bound to the app).
+
+Reported turnaround is three to eight weeks, and only read access exists.
+Until then every Yahoo command fails fast; the board's manual pick entry is
+the plan for the draft.
+
+### OAuth notes
+
+`./fh yahoo auth` uses the authorization-code flow with `redirect_uri=oob`
+(paste the code back). It sends no `scope`: Yahoo grants whatever the app
+was registered with, and asking for `fspt-r` explicitly is rejected with
+`invalid_scope` on an app registered as read/write. Set `YAHOO_SCOPE` to
+override. Tokens are cached in `data/yahoo-token.json` and refreshed when
+they expire.
+
+### Commands
+
+Put the client id and secret in `.env`, then:
 
 ```bash
 ./fh yahoo auth                # prints a URL, paste the code back
@@ -113,14 +145,21 @@ and secret in `.env`, then:
 ```
 
 Every raw response from `settings`, `teams`, `draft`, and `raw` is saved
-under `data/yahoo/raw/`. The client was written against Yahoo's documented
-shapes and tested on fixtures, not yet against the live API, so if a parse
-comes back empty, look at the raw file and `./fh yahoo raw`.
+under `data/yahoo/raw/`. The parsers were written against Yahoo's documented
+shapes and tested on fixtures; the live check is blocked on the approval
+above. When access arrives, run the commands in the order listed and compare
+each parsed result with its raw file. Things to look at first: the auction
+budget field in settings (the config falls back to the existing budget when
+Yahoo has none), whether GP/MIN/TO come back in league-context player stats
+(if GP is missing, use `./fh yahoo players --stat-type average_season`),
+and the `FGM/A` / `FTM/A` composite stats, which the importer splits into
+made and attempted columns.
 
 Whether a Yahoo **mock** draft is reachable through the API is still an open
-question (mock leagues have their own keys and may not appear under the
-user's leagues). To test against a mock draft, run it in the Yahoo UI and
-enter picks by hand on the board; that path is fully supported.
+question and cannot be tested until access is approved (mock leagues have
+their own keys and may not appear under the user's leagues). To test against
+a mock draft, run it in the Yahoo UI and enter picks by hand on the board;
+that path is fully supported.
 
 ## Tests
 

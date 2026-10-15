@@ -22,7 +22,12 @@ function credentials(): { id: string; secret: string } {
 
 export function authUrl(): string {
   const { id } = credentials();
+  // No scope by default: Yahoo then grants whatever the app was registered
+  // with. Asking for fspt-r explicitly fails with invalid_scope on an app
+  // registered as Fantasy Sports read/write (fspt-w), so only send a scope
+  // when YAHOO_SCOPE is set.
   const q = new URLSearchParams({ client_id: id, redirect_uri: 'oob', response_type: 'code', language: 'en-us' });
+  if (process.env.YAHOO_SCOPE) q.set('scope', process.env.YAHOO_SCOPE);
   return `${AUTH_URL}?${q}`;
 }
 

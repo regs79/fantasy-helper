@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { asArray, dig, unwrap } from '../src/yahoo/normalize.js';
 import { getDraftResults, getSettings, getTeams, parsePlayersPage, type YahooSettings } from '../src/yahoo/api.js';
-import { yahooPlayersToProjections } from '../src/yahoo/projections.js';
+import { compositeHeaders, yahooPlayersToProjections } from '../src/yahoo/projections.js';
+import { accessHint } from '../src/yahoo/client.js';
+import { authUrl } from '../src/yahoo/oauth.js';
 import { configFromSettings } from '../src/yahoo/config.js';
 import { applyDraftResults, linkTeams } from '../src/yahoo/sync.js';
 import { newDraft } from '../src/draft/store.js';
@@ -20,10 +22,10 @@ const settingsRaw = {
             is_auction_draft: '1',
             stat_categories: {
               stats: [
-                { stat: { stat_id: 9004003, name: 'Field Goals Made / Attempted', display_name: 'FGM/FGA', sort_order: '1', is_only_display_stat: '1' } },
+                { stat: { stat_id: 9004003, name: 'Field Goals Made / Attempted', display_name: 'FGM/A', sort_order: '1', is_only_display_stat: '1' } },
                 { stat: { stat_id: 4, name: 'Field Goals Made', display_name: 'FGM', sort_order: '1' } },
                 { stat: { stat_id: 5, name: 'Field Goal Percentage', display_name: 'FG%', sort_order: '1' } },
-                { stat: { stat_id: 9007006, name: 'Free Throws Made / Attempted', display_name: 'FTM/FTA', sort_order: '1', is_only_display_stat: '1' } },
+                { stat: { stat_id: 9007006, name: 'Free Throws Made / Attempted', display_name: 'FTM/A', sort_order: '1', is_only_display_stat: '1' } },
                 { stat: { stat_id: 8, name: 'Free Throw Percentage', display_name: 'FT%', sort_order: '1' } },
                 { stat: { stat_id: 10, name: '3-point Shots Made', display_name: '3PTM', sort_order: '1' } },
                 { stat: { stat_id: 12, name: 'Points Scored', display_name: 'PTS', sort_order: '1' } },
@@ -215,6 +217,46 @@ describe('yahoo stats -> projections', () => {
     expect(j.positions).toEqual(['C']);
     const sga = conv.projections.find((p) => p.id === 'shai-gilgeous-alexander')!;
     expect(sga.market?.avgCost).toBeCloseTo(78.3);
+  });
+});
+
+describe('composite stat headers', () => {
+  it('derives attempts from Yahoo\'s "FGM/A" names and passes explicit pairs through', () => {
+    expect(compositeHeaders('FGM/A')).toEqual(['FGM', 'FGA']);
+    expect(compositeHeaders('FTM/A')).toEqual(['FTM', 'FTA']);
+    expect(compositeHeaders('3PTM/A')).toEqual(['3PTM', '3PTA']);
+    expect(compositeHeaders('FGM/FGA')).toEqual(['FGM', 'FGA']);
+    expect(compositeHeaders('A/T')).toEqual(['A', 'T']);
+    expect(compositeHeaders('PTS')).toBeUndefined();
+  });
+});
+
+describe('oauth and access errors', () => {
+  it('sends no scope unless YAHOO_SCOPE is set', () => {
+    const saved = { id: process.env.YAHOO_CLIENT_ID, secret: process.env.YAHOO_CLIENT_SECRET, scope: process.env.YAHOO_SCOPE };
+    process.env.YAHOO_CLIENT_ID = 'test-id';
+    process.env.YAHOO_CLIENT_SECRET = 'test-secret';
+    delete process.env.YAHOO_SCOPE;
+    try {
+      const u = new URL(authUrl());
+      expect(u.searchParams.get('redirect_uri')).toBe('oob');
+      expect(u.searchParams.has('scope')).toBe(false);
+      process.env.YAHOO_SCOPE = 'fspt-w';
+      expect(new URL(authUrl()).searchParams.get('scope')).toBe('fspt-w');
+    } finally {
+      for (const [k, v] of [['YAHOO_CLIENT_ID', saved.id], ['YAHOO_CLIENT_SECRET', saved.secret], ['YAHOO_SCOPE', saved.scope]] as const) {
+        if (v == null) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
+  it('explains the unapproved-app 403', () => {
+    // Trimmed from a real response, 2026-10-15.
+    const body = JSON.stringify({ error: { 'xml:lang': 'en-us', 'yahoo:uri': '/fantasy/v2/game/nba?format=json', description: 'This application is not authorized to perform this action.', detail: '' } });
+    expect(accessHint(403, body)).toContain('sports.yahoo.com/developer/access');
+    expect(accessHint(401, 'oauth_problem="additional_authorization_required"')).toContain('entitlement');
+    expect(accessHint(404, 'not found')).toBe('');
   });
 });
 

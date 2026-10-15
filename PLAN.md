@@ -152,7 +152,15 @@ In-season tooling follows once the season starts on Oct 20.
 1. Preferred projection source for a CSV, or rely on Yahoo last-season
    stats for the first pass?
 2. Final roster layout (15 slots vs. 13 with G, G, F, F, C, Util)?
-3. Does the Yahoo API expose mock drafts? Test once the app is registered.
+3. Does the Yahoo API expose mock drafts? Untested: blocked on Yahoo API
+   access (below). Plan for manual entry on the board regardless.
+4. Yahoo Fantasy API access. Since 2026-07-22 Yahoo returns 403 "This
+   application is not authorized" for every app not approved through
+   <https://sports.yahoo.com/developer/access/>; the permission is no longer
+   self-serve. Confirmed live on 2026-10-15 with two pre-existing apps (one
+   read, one read/write): OAuth succeeds, all Fantasy endpoints 403.
+   Application pending; reported turnaround three to eight weeks. The draft
+   does not depend on it.
 
 ## Status (2026-10-15)
 
@@ -164,11 +172,12 @@ Built, tested, and running locally and in Docker:
 - Draft state, board computation, CLI (`src/draft`, `src/cli`).
 - Web draft board on Fastify (`src/server`), keyboard-driven pick entry.
 - Yahoo client: OAuth, settings, teams, players + draft_analysis, draft
-  results, sync into the local draft (`src/yahoo`). Written against Yahoo's
-  documented JSON shapes and tested on fixtures only; needs a live check once
-  the developer app is approved.
+  results, sync into the local draft (`src/yahoo`). OAuth verified live
+  (no scope parameter; tokens mint and refresh). The API parsers are tested
+  on fixtures only: every Fantasy endpoint is 403 until Yahoo approves the
+  app (open question 4), so the live parser check is deferred.
 - Docker image, Compose file and release script matching shop-list; deployed
   to flux (see README).
 
-Still open: the three questions above, plus a live Yahoo run. The mock-draft
-question is answered in practice by manual entry on the board.
+Still open: the four questions above. The mock-draft question is answered in
+practice by manual entry on the board.

@@ -27,16 +27,14 @@ export function yahooPlayersToProjections(
     const row: Record<string, string> = { Player: p.name, Team: p.team, Pos: p.positions.join(',') };
     for (const [id, value] of Object.entries(p.stats)) {
       const header = nameById.get(id) ?? `stat_${id}`;
-      if (header.includes('/') && value.includes('/')) {
-        const [h1, h2] = header.split('/');
+      const split = header.includes('/') && value.includes('/') ? compositeHeaders(header) : undefined;
+      if (split) {
         const [v1, v2] = value.split('/');
-        if (h1 && h2) {
-          row[h1.trim()] = (v1 ?? '').trim();
-          row[h2.trim()] = (v2 ?? '').trim();
-          headerSet.add(h1.trim());
-          headerSet.add(h2.trim());
-          continue;
-        }
+        row[split[0]] = (v1 ?? '').trim();
+        row[split[1]] = (v2 ?? '').trim();
+        headerSet.add(split[0]);
+        headerSet.add(split[1]);
+        continue;
       }
       row[header] = value;
       headerSet.add(header);
@@ -62,6 +60,18 @@ export function yahooPlayersToProjections(
     }
   }
   return { projections: result.projections, warnings: result.warnings, headers, mapping: result.mapping as Record<string, string> };
+}
+
+/**
+ * Column names for a composite "made/attempted" stat. Yahoo's display names
+ * are "FGM/A" and "FTM/A" (the second half is just "A"), so derive the
+ * attempts column from the made column; "FGM/FGA" style names pass through.
+ */
+export function compositeHeaders(header: string): [string, string] | undefined {
+  const [h1, h2, ...rest] = header.split('/').map((s) => s.trim());
+  if (!h1 || !h2 || rest.length) return undefined;
+  if (/^a(tt)?$/i.test(h2)) return /m$/i.test(h1) ? [h1, h1.replace(/m$/i, 'A')] : undefined;
+  return [h1, h2];
 }
 
 export function yahooPlayerId(p: YahooPlayer): string {
