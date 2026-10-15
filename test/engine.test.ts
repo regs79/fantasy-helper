@@ -109,8 +109,8 @@ describe('ratio categories are volume weighted', () => {
     ];
     const { players } = computeValues(ps, config);
     const byId = Object.fromEntries(players.map((p) => [p.id, p]));
-    expect(byId.highvol!.contrib.fg_pct).toBeGreaterThan(byId.lowvol!.contrib.fg_pct);
-    expect(byId.highvol!.z.fg_pct).toBeGreaterThan(byId.lowvol!.z.fg_pct);
+    expect(byId.highvol!.contrib.fg_pct!).toBeGreaterThan(byId.lowvol!.contrib.fg_pct!);
+    expect(byId.highvol!.z.fg_pct!).toBeGreaterThan(byId.lowvol!.z.fg_pct!);
     expect(byId.brick!.z.fg_pct).toBeLessThan(0);
   });
 
@@ -145,8 +145,8 @@ describe('punts', () => {
     const punted = computeValues(ps, config, { punt: ['blk'] });
     const fullById = Object.fromEntries(full.players.map((p) => [p.id, p]));
     const puntById = Object.fromEntries(punted.players.map((p) => [p.id, p]));
-    expect(puntById.rim!.z.blk).toBeCloseTo(fullById.rim!.z.blk);
-    expect(puntById.rim!.value).toBeCloseTo(fullById.rim!.z.pts);
+    expect(puntById.rim!.z.blk!).toBeCloseTo(fullById.rim!.z.blk!);
+    expect(puntById.rim!.value).toBeCloseTo(fullById.rim!.z.pts!);
     expect(punted.players[0]!.id).toBe('scorer');
     expect(punted.punted).toEqual(['blk']);
   });
@@ -171,7 +171,7 @@ describe('pool iteration', () => {
     // Pool after narrowing = pts 30..25, mean 27.5.
     expect(pool.cats.pts!.mean).toBeCloseTo(27.5);
     // Players outside the pool still get z-scores, relative to the pool.
-    expect(players[19]!.z.pts).toBeLessThan(players[5]!.z.pts);
+    expect(players[19]!.z.pts!).toBeLessThan(players[5]!.z.pts!);
   });
 });
 
