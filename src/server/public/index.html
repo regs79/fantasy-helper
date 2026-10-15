@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft Board</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36; --text: #e6e8ee; --muted: #8b93a7;
+    --accent: #5aa9ff; --good: #3ecf8e; --bad: #ff6b6b; --warn: #ffc857; --sel: #233047;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  .stat { color: var(--muted); } .stat b { color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { border: 1px solid var(--line); border-radius: 12px; padding: 2px 8px; cursor: pointer; user-select: none; color: var(--muted); }
+  .chip.on { background: #3a2a2a; border-color: var(--bad); color: var(--bad); text-decoration: line-through; }
+  button { background: #222736; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #06111f; border-color: var(--accent); font-weight: 600; }
+  button.danger { color: var(--bad); }
+  input, select { background: #0c0e12; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; padding: 12px 14px; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 3px 6px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); cursor: pointer; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.player { cursor: pointer; } tr.player:hover { background: #1d2230; } tr.player.sel { background: var(--sel); outline: 1px solid var(--accent); }
+  tr.drafted { opacity: .45; }
+  .z { font-variant-numeric: tabular-nums; }
+  .price { font-weight: 700; color: var(--warn); }
+  .up { color: var(--good); } .down { color: var(--bad); }
+  .scroll { max-height: calc(100vh - 150px); overflow: auto; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .toolbar input[type=search] { flex: 1; min-width: 200px; }
+  .me { color: var(--accent); font-weight: 600; }
+  .lineup { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-bottom: 8px; }
+  .lineup .slot { color: var(--muted); }
+  .muted { color: var(--muted); }
+  .rank1 { color: var(--good); } .rankLow { color: var(--bad); }
+  .err { color: var(--bad); margin-top: 6px; min-height: 1.2em; }
+  .ok { color: var(--good); }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 360px; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h3 { margin: 0 0 10px; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .row label { width: 60px; color: var(--muted); }
+  .recent li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .recent button { padding: 0 6px; font-size: 11px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--muted); font-size: 11px; }
+  .setup { padding: 30px; max-width: 700px; margin: 0 auto; }
+  .setup textarea { width: 100%; height: 200px; background: #0c0e12; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Draft Board</h1>
+  <span class="stat" id="stPicks"></span>
+  <span class="stat" id="stMoney"></span>
+  <span class="stat" id="stInfl"></span>
+  <span class="stat">Punt: <span class="chips" id="punts" style="display:inline-flex"></span></span>
+  <span style="flex:1"></span>
+  <label class="muted"><input type="checkbox" id="showDrafted"> show drafted</label>
+  <button id="syncBtn" title="Pull draft results from Yahoo">Sync Yahoo</button>
+  <button id="undoBtn" class="danger" title="Ctrl+Z">Undo last</button>
+  <span id="headerMsg" class="muted"></span>
+</header>
+
+<div id="setup" class="setup" hidden></div>
+
+<main id="main" hidden>
+  <section class="panel">
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search players  ( / to focus, ↑↓ to move, Enter to pick )" autocomplete="off">
+      <span class="muted" id="count"></span>
+    </div>
+    <div class="scroll">
+      <table id="players"><thead></thead><tbody></tbody></table>
+    </div>
+  </section>
+  <aside style="display:flex; flex-direction:column; gap:12px">
+    <section class="panel">
+      <h2>Teams <span class="muted" style="text-transform:none">(click a name to make it yours, double-click to rename)</span></h2>
+      <table id="teams"><thead><tr><th>Team</th><th class="n">Left</th><th class="n">Slots</th><th class="n">Max bid</th><th class="n">Value</th></tr></thead><tbody></tbody></table>
+    </section>
+    <section class="panel" id="mePanel">
+      <h2>My roster</h2>
+      <div class="lineup" id="lineup"></div>
+      <table id="profile"><thead><tr><th>Cat</th><th class="n">z</th><th class="n">Rank</th><th class="n">Team total</th></tr></thead><tbody></tbody></table>
+    </section>
+    <section class="panel">
+      <h2>Recent picks</h2>
+      <ul class="recent" id="recent"></ul>
+    </section>
+  </aside>
+</main>
+
+<dialog id="pickDialog">
+  <h3 id="pickTitle"></h3>
+  <div class="muted" id="pickInfo"></div>
+  <div class="row"><label>Team</label><select id="pickTeam"></select></div>
+  <div class="row"><label>Price</label><input type="number" id="pickPrice" min="0" step="1" style="width:100px"> <span class="muted" id="pickMax"></span></div>
+  <div class="err" id="pickErr"></div>
+  <div class="row" style="justify-content:flex-end"><button id="pickCancel">Cancel <kbd>Esc</kbd></button><button class="primary" id="pickOk">Record pick <kbd>Enter</kbd></button></div>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let board = null;
+let query = '';
+let selIdx = 0;
+let lastTeamId = null;
+let sortKey = 'price';
+let sortDir = -1;
+let pendingUndo = false;
+
+const fmt1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
+const money = (n) => '$' + Math.round(n);
+const zClass = (z) => (z > 0.05 ? 'up' : z < -0.05 ? 'down' : 'muted');
+
+async function api(path, body, method = 'POST') {
+  const res = await fetch(path, { method, headers: body != null ? { 'content-type': 'application/json' } : {}, body: body != null ? JSON.stringify(body) : undefined });
+  const json = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+  if (!res.ok || json.ok === false) throw new Error(json.error || res.statusText);
+  return json;
+}
+
+function flash(msg, cls = 'muted') {
+  const el = $('#headerMsg');
+  el.textContent = msg;
+  el.className = cls;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function refresh() {
+  try {
+    board = await (await fetch('/api/board')).json();
+    render();
+  } catch (e) {
+    flash('board offline: ' + e.message, 'err');
+  }
+}
+
+function render() {
+  if (!board.hasProjections || !board.hasDraft) return renderSetup();
+  $('#setup').hidden = true; $('#main').hidden = false;
+  const p = board.pricing;
+  $('#stPicks').innerHTML = `Picks <b>${p.picks}/${board.config.teams * board.config.slotsPerTeam}</b>`;
+  $('#stMoney').innerHTML = `Room <b>${money(p.money)}</b> for <b>${p.slots}</b> slots`;
+  $('#stInfl').innerHTML = `Inflation <b class="${p.inflation > 1.02 ? 'up' : p.inflation < 0.98 ? 'down' : ''}">${p.inflation.toFixed(2)}x</b>`;
+  $('#punts').innerHTML = board.config.categories.map((c) => `<span class="chip ${board.punts.includes(c.key) ? 'on' : ''}" data-cat="${c.key}">${c.label}</span>`).join('');
+  renderPlayers();
+  renderTeams();
+  renderMe();
+  renderRecent();
+}
+
+function renderSetup() {
+  $('#main').hidden = true;
+  const s = $('#setup');
+  s.hidden = false;
+  if (!board.hasProjections) {
+    s.innerHTML = `<h2>No projections loaded</h2>
+      <p>Import a projections CSV. Columns are auto-detected (Player, Pos, GP, PTS, REB or OREB/DREB, AST, STL, BLK, 3PM, FG%/FGA or FGM/FGA, FT%/FTA, TO). You can also run <code>./fh import file.csv</code>.</p>
+      <p><input type="file" id="csvFile" accept=".csv,.tsv,.txt"> <button class="primary" id="csvUpload">Import</button></p><div class="err" id="setupErr"></div>`;
+    $('#csvUpload').onclick = async () => {
+      const f = $('#csvFile').files[0];
+      if (!f) return;
+      try {
+        const res = await fetch('/api/projections?source=' + encodeURIComponent(f.name), { method: 'POST', headers: { 'content-type': 'text/csv' }, body: await f.text() });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        flash(`Imported ${json.count} players` + (json.warnings.length ? ' (' + json.warnings.join('; ') + ')' : ''), 'ok');
+        refresh();
+      } catch (e) { $('#setupErr').textContent = e.message; }
+    };
+    return;
+  }
+  s.innerHTML = `<h2>Start a draft</h2>
+    <p>One team name per line (${board.config.teams} teams). Pick yours below. You can rename teams later by double-clicking them.</p>
+    <textarea id="teamNames">${Array.from({ length: board.config.teams }, (_, i) => 'Team ' + (i + 1)).join('\n')}</textarea>
+    <p>My team: <input id="meName" placeholder="name or number" value="1"></p>
+    <p><button class="primary" id="startDraft">Start draft</button></p><div class="err" id="setupErr"></div>`;
+  $('#startDraft').onclick = async () => {
+    const teams = $('#teamNames').value.split('\n').map((s) => s.trim()).filter(Boolean);
+    try { await api('/api/draft/new', { teams, me: $('#meName').value, force: true }); refresh(); }
+    catch (e) { $('#setupErr').textContent = e.message; }
+  };
+}
+
+function visiblePlayers() {
+  const q = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let list = board.players.filter((p) => $('#showDrafted').checked || !p.drafted);
+  if (q.length) list = list.filter((p) => { const n = p.name.toLowerCase(); return q.every((w) => n.split(/[\s-]+/).some((part) => part.startsWith(w)) || n.includes(w)); });
+  const key = sortKey;
+  list.sort((a, b) => {
+    const av = key in a ? a[key] : (a.z[key] ?? a.line[key] ?? 0);
+    const bv = key in b ? b[key] : (b.z[key] ?? b.line[key] ?? 0);
+    if (typeof av === 'string') return av.localeCompare(bv) * sortDir;
+    return ((av ?? 0) - (bv ?? 0)) * sortDir;
+  });
+  return list;
+}
+
+function renderPlayers() {
+  const cats = board.config.categories;
+  const head = `<tr><th data-k="rank" class="n">#</th><th data-k="name">Player</th><th>Pos</th><th>Tm</th><th data-k="price" class="n">$</th><th data-k="basePrice" class="n" title="pre-draft price">Base</th><th data-k="value" class="n">Val</th>${cats.map((c) => `<th data-k="${c.key}" class="n">${c.label}</th>`).join('')}<th class="n" title="per game">PTS</th><th class="n">REB</th><th class="n">AST</th><th class="n" title="Yahoo average auction cost">Mkt</th></tr>`;
+  $('#players thead').innerHTML = head;
+  const list = visiblePlayers();
+  if (selIdx >= list.length) selIdx = Math.max(0, list.length - 1);
+  $('#count').textContent = `${list.length} shown`;
+  $('#players tbody').innerHTML = list.slice(0, 300).map((p, i) => {
+    const drafted = p.drafted ? `<span class="muted">→ ${p.drafted.teamName} ${money(p.drafted.price)}</span>` : '';
+    const price = p.drafted ? '' : `<span class="price">${money(p.price)}</span>`;
+    const delta = p.drafted ? '' : (Math.round(p.price) - Math.round(p.basePrice));
+    return `<tr class="player ${p.drafted ? 'drafted' : ''} ${i === selIdx ? 'sel' : ''}" data-id="${p.id}" data-i="${i}">
+      <td class="n muted">${p.rank || ''}</td><td>${p.name} ${drafted}</td><td class="muted">${p.positions.join('/')}</td><td class="muted">${p.team || ''}</td>
+      <td class="n">${price}</td><td class="n muted">${money(p.basePrice)}${delta ? ` <span class="${delta > 0 ? 'up' : 'down'}" style="font-size:10px">${delta > 0 ? '+' : ''}${delta}</span>` : ''}</td><td class="n">${fmt1(p.value)}</td>
+      ${cats.map((c) => `<td class="n z ${zClass(p.z[c.key] ?? 0)}">${fmt1(p.z[c.key] ?? 0)}</td>`).join('')}
+      <td class="n muted">${fmt1(p.line.pts ?? 0)}</td><td class="n muted">${fmt1(p.line.reb ?? 0)}</td><td class="n muted">${fmt1(p.line.ast ?? 0)}</td>
+      <td class="n muted">${p.market && p.market.avgCost != null ? money(p.market.avgCost) : ''}</td></tr>`;
+  }).join('');
+  const selRow = $('#players tbody tr.sel');
+  if (selRow) selRow.scrollIntoView({ block: 'nearest' });
+}
+
+function renderTeams() {
+  $('#teams tbody').innerHTML = board.teams.map((t) => `<tr data-team="${t.id}"><td class="${t.isMe ? 'me' : ''}" style="cursor:pointer" title="click: this is me; double-click: rename">${t.name}</td><td class="n">${money(t.remaining)}</td><td class="n">${t.openSlots}</td><td class="n">${money(t.maxBid)}</td><td class="n muted">${fmt1(t.value)}</td></tr>`).join('');
+}
+
+function renderMe() {
+  const me = board.me;
+  if (!me) { $('#lineup').innerHTML = '<span class="muted">Click a team name to mark it as yours.</span>'; $('#profile tbody').innerHTML = ''; return; }
+  $('#mePanel h2').textContent = `My roster: ${me.name} (${money(me.remaining)} left, ${me.openSlots} slots, max bid ${money(me.maxBid)})`;
+  $('#lineup').innerHTML = me.lineup.map((l) => `<span class="slot">${l.slot}</span><span>${l.playerName || '<span class="muted">—</span>'}</span>`).join('');
+  const n = board.teams.filter((t) => t.picks > 0).length;
+  $('#profile tbody').innerHTML = me.profile.map((c) => {
+    const punted = board.punts.includes(c.key);
+    const rankCls = !c.rank ? '' : c.rank === 1 ? 'rank1' : c.rank >= Math.max(2, n - 1) && n > 2 ? 'rankLow' : '';
+    return `<tr style="${punted ? 'opacity:.4;text-decoration:line-through' : ''}"><td>${c.label}</td><td class="n z ${zClass(c.z)}">${fmt1(c.z)}</td><td class="n ${rankCls}">${c.rank ? c.rank + '/' + n : '-'}</td><td class="n muted">${c.display}</td></tr>`;
+  }).join('');
+}
+
+function renderRecent() {
+  $('#recent').innerHTML = board.recentPicks.map((p) => `<li><span>#${p.n} <b>${p.playerName}</b> <span class="muted">${p.teamName}</span> ${money(p.price)}${p.source === 'yahoo' ? ' <span class="muted">(Y!)</span>' : ''}</span><button data-undo="${p.n}" title="remove this pick">✕</button></li>`).join('') || '<li class="muted">No picks yet</li>';
+}
+
+// ---- pick dialog ----
+function openPick(id) {
+  const p = board.players.find((x) => x.id === id);
+  if (!p || p.drafted) return;
+  $('#pickTitle').textContent = p.name;
+  const cats = board.config.categories;
+  $('#pickInfo').innerHTML = `${p.positions.join('/')} ${p.team || ''} · price <b class="price">${money(p.price)}</b> (base ${money(p.basePrice)}) · value ${fmt1(p.value)} · ` + cats.map((c) => `<span class="${zClass(p.z[c.key] ?? 0)}">${c.label} ${fmt1(p.z[c.key] ?? 0)}</span>`).join(' ');
+  const sel = $('#pickTeam');
+  sel.innerHTML = board.teams.map((t) => `<option value="${t.id}" ${t.openSlots <= 0 ? 'disabled' : ''}>${t.name}${t.isMe ? ' (me)' : ''} — ${money(t.remaining)}, ${t.openSlots} slots, max ${money(t.maxBid)}</option>`).join('');
+  const defaultTeam = lastTeamId ?? (board.me && board.me.id) ?? board.teams[0].id;
+  sel.value = defaultTeam;
+  $('#pickPrice').value = Math.max(1, Math.round(p.price));
+  $('#pickErr').textContent = '';
+  updateMax();
+  const d = $('#pickDialog');
+  d.dataset.id = id;
+  d.showModal();
+  $('#pickPrice').focus(); $('#pickPrice').select();
+}
+function updateMax() {
+  const t = board.teams.find((x) => x.id === $('#pickTeam').value);
+  $('#pickMax').textContent = t ? `max ${money(t.maxBid)}` : '';
+}
+async function submitPick() {
+  const d = $('#pickDialog');
+  const teamId = $('#pickTeam').value;
+  const price = Number($('#pickPrice').value);
+  try {
+    const res = await api('/api/pick', { playerId: d.dataset.id, teamId, price });
+    lastTeamId = teamId;
+    d.close();
+    flash(`#${res.pick.n} ${res.pick.playerName} → ${board.teams.find((t) => t.id === teamId).name} ${money(price)}`, 'ok');
+    $('#search').value = ''; query = ''; selIdx = 0;
+    await refresh();
+    $('#search').focus();
+  } catch (e) { $('#pickErr').textContent = e.message; }
+}
+async function undo(n) {
+  try {
+    const res = await api('/api/undo', n ? { n } : {});
+    flash(`Removed #${res.pick.n} ${res.pick.playerName}`, 'ok');
+    refresh();
+  } catch (e) { flash(e.message, 'err'); }
+}
+
+// ---- events ----
+$('#search').addEventListener('input', (e) => { query = e.target.value; selIdx = 0; renderPlayers(); });
+$('#showDrafted').addEventListener('change', renderPlayers);
+$('#players').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-k]');
+  if (th) { const k = th.dataset.k; if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = k === 'name' || k === 'rank' ? 1 : -1; } renderPlayers(); return; }
+  const tr = e.target.closest('tr.player');
+  if (tr) { selIdx = Number(tr.dataset.i); openPick(tr.dataset.id); }
+});
+$('#teams').addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr[data-team]');
+  if (!tr || e.detail !== 1) return;
+  setTimeout(async () => { if (tr.dataset.renaming) return; try { await api('/api/me', { teamId: tr.dataset.team }); refresh(); } catch (err) { flash(err.message, 'err'); } }, 250);
+});
+$('#teams').addEventListener('dblclick', async (e) => {
+  const tr = e.target.closest('tr[data-team]');
+  if (!tr) return;
+  tr.dataset.renaming = '1';
+  const t = board.teams.find((x) => x.id === tr.dataset.team);
+  const name = window.prompt('Team name', t.name);
+  delete tr.dataset.renaming;
+  if (name && name !== t.name) { try { await api('/api/team', { teamId: t.id, name }); refresh(); } catch (err) { flash(err.message, 'err'); } }
+});
+$('#punts').addEventListener('click', async (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const cat = chip.dataset.cat;
+  const punts = board.punts.includes(cat) ? board.punts.filter((c) => c !== cat) : [...board.punts, cat];
+  try { await api('/api/punts', { punts }); refresh(); } catch (err) { flash(err.message, 'err'); }
+});
+$('#recent').addEventListener('click', (e) => { const b = e.target.closest('button[data-undo]'); if (b && confirm(`Remove pick #${b.dataset.undo}?`)) undo(Number(b.dataset.undo)); });
+$('#undoBtn').addEventListener('click', () => { if (confirm('Undo the last pick?')) undo(); });
+$('#syncBtn').addEventListener('click', async () => {
+  $('#syncBtn').disabled = true;
+  try { const r = await api('/api/sync', {}); flash(`Synced from Yahoo: ${r.added} new pick(s)`, 'ok'); refresh(); }
+  catch (e) { flash('Sync: ' + e.message, 'err'); }
+  finally { $('#syncBtn').disabled = false; }
+});
+$('#pickTeam').addEventListener('change', updateMax);
+$('#pickOk').addEventListener('click', submitPick);
+$('#pickCancel').addEventListener('click', () => $('#pickDialog').close());
+$('#pickDialog').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitPick(); } });
+$('#pickDialog').addEventListener('close', () => $('#search').focus());
+
+document.addEventListener('keydown', (e) => {
+  if ($('#pickDialog').open) return;
+  const inSearch = document.activeElement === $('#search');
+  if (e.key === '/' && !inSearch) { e.preventDefault(); $('#search').focus(); $('#search').select(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); if (confirm('Undo the last pick?')) undo(); return; }
+  if (!inSearch && e.target.tagName === 'INPUT') return;
+  const list = visiblePlayers();
+  if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(list.length - 1, selIdx + 1); renderPlayers(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(0, selIdx - 1); renderPlayers(); }
+  else if (e.key === 'Enter' && list[selIdx]) { e.preventDefault(); openPick(list[selIdx].id); }
+  else if (e.key === 'Escape' && inSearch) { $('#search').value = ''; query = ''; renderPlayers(); }
+});
+
+refresh();
+setInterval(() => { if (!$('#pickDialog').open) refresh(); }, 2000);
+</script>
+</body>
+</html>
