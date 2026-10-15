@@ -145,6 +145,12 @@ flux, sets `TAG=` in the remote `.env`, and verifies the running image carries
 the new tag. Rollback is `TAG=<old sha> docker compose up -d` on flux. The
 board is then at `http://flux:3010`.
 
+The container joins the `apps-net` network, so Nginx Proxy Manager on flux
+can forward a hostname to `fantasy-helper:3000` directly. The planned
+address is `https://fantasy.rgnr.net` (LAN and VPN only); it is not set up
+yet, so use the port until it is. The app uses only relative URLs, so no
+configuration changes when the proxy goes in front.
+
 Yahoo credentials on flux go in `/home/craig/docker/apps/fantasy-helper/.env`
 (`YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, optional `YAHOO_LEAGUE_ID`). The
 CLI runs inside the container:
