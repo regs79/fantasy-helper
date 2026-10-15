@@ -1,0 +1,28 @@
+# Runs on flux. Set TAG to a git short SHA in the .env next to this file, then
+# `docker compose up -d`. Rollback is changing TAG back. Never `latest`.
+# scripts/release.sh copies this file over and rewrites TAG for you.
+services:
+  fantasy-helper:
+    container_name: fantasy-helper
+    hostname: fantasy-helper
+    # The registry runs on flux itself, so pull from localhost there.
+    image: ${REGISTRY:-localhost:5000}/${IMAGE:-fantasy-helper}:${TAG}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3010}:3000"
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      # Yahoo app credentials come from the .env next to this file.
+      YAHOO_CLIENT_ID: ${YAHOO_CLIENT_ID:-}
+      YAHOO_CLIENT_SECRET: ${YAHOO_CLIENT_SECRET:-}
+      YAHOO_LEAGUE_ID: ${YAHOO_LEAGUE_ID:-}
+    volumes:
+      # Draft state, projections, Yahoo token and cache. Never inside the image.
+      - ~/docker/data/fantasy-helper:/data
+    networks:
+      - apps-net
+
+networks:
+  apps-net:
+    external: true

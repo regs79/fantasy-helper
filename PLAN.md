@@ -153,3 +153,22 @@ In-season tooling follows once the season starts on Oct 20.
    stats for the first pass?
 2. Final roster layout (15 slots vs. 13 with G, G, F, F, C, Util)?
 3. Does the Yahoo API expose mock drafts? Test once the app is registered.
+
+## Status (2026-10-15)
+
+Built, tested, and running locally and in Docker:
+
+- Value engine with volume-weighted ratios, pool iteration, punts, dollar
+  pricing with live inflation (`src/engine`).
+- CSV importer with header auto-mapping and derived stats (`src/projections`).
+- Draft state, board computation, CLI (`src/draft`, `src/cli`).
+- Web draft board on Fastify (`src/server`), keyboard-driven pick entry.
+- Yahoo client: OAuth, settings, teams, players + draft_analysis, draft
+  results, sync into the local draft (`src/yahoo`). Written against Yahoo's
+  documented JSON shapes and tested on fixtures only; needs a live check once
+  the developer app is approved.
+- Docker image, Compose file and release script matching shop-list; deployed
+  to flux (see README).
+
+Still open: the three questions above, plus a live Yahoo run. The mock-draft
+question is answered in practice by manual entry on the board.

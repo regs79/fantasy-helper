@@ -10,9 +10,12 @@
   "scripts": {
     "cli": "tsx src/cli.ts",
     "board": "tsx src/cli.ts board",
+    "build": "tsc -p tsconfig.build.json && cp -R src/server/public dist/server/public",
+    "start": "node dist/cli.js board",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "scripts/release.sh"
   },
   "dependencies": {
     "commander": "^13.1.0",
