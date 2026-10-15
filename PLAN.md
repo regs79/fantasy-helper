@@ -177,7 +177,7 @@ Built, tested, and running locally and in Docker:
   on fixtures only: every Fantasy endpoint is 403 until Yahoo approves the
   app (open question 4), so the live parser check is deferred.
 - Docker image, Compose file and release script matching shop-list; deployed
-  to flux (see README).
+  to the home server (see README).
 
 Still open: the four questions above. The mock-draft question is answered in
 practice by manual entry on the board.

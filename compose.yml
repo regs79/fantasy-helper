@@ -1,11 +1,11 @@
-# Runs on flux. Set TAG to a git short SHA in the .env next to this file, then
+# Runs on the server. Set TAG to a git short SHA in the .env next to this file, then
 # `docker compose up -d`. Rollback is changing TAG back. Never `latest`.
 # scripts/release.sh copies this file over and rewrites TAG for you.
 services:
   fantasy-helper:
     container_name: fantasy-helper
     hostname: fantasy-helper
-    # The registry runs on flux itself, so pull from localhost there.
+    # The registry runs on the server itself, so pull from localhost there.
     image: ${REGISTRY:-localhost:5000}/${IMAGE:-fantasy-helper}:${TAG}
     restart: unless-stopped
     ports:

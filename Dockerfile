@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Always build with --platform linux/amd64: flux is x86_64, the Mac is arm64.
+# Always build with --platform linux/amd64: the server is x86_64, the Mac is arm64.
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /src

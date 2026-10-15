@@ -168,37 +168,38 @@ npm test          # vitest: engine, importer, draft store/board, Yahoo parsing
 npm run typecheck
 ```
 
-## Deploying to flux
+## Deploying to a home server
 
 Same shape as shop-list: an amd64 image tagged with the git short SHA, pushed
-to the plain-HTTP registry on flux, run by Compose there with the data dir
-bind-mounted from `~/docker/data/fantasy-helper`.
+to a plain-HTTP registry on the LAN, run by Compose on the server with the
+data dir bind-mounted from `~/docker/data/fantasy-helper`. The server is
+`DEPLOY_SSH` (an ssh host alias) in `.env`; `<server>` below stands for it.
 
 ```bash
-npm run release   # build --platform linux/amd64, push, ssh flux, compose up
+npm run release   # build --platform linux/amd64, push, ssh to the server, compose up
 ```
 
 `release.sh` reads `REGISTRY`, `IMAGE`, `DEPLOY_SSH`, `DEPLOY_DIR` from
-`.env`, refuses to run with uncommitted changes, copies `compose.yml` to
-flux, sets `TAG=` in the remote `.env`, and verifies the running image carries
-the new tag. Rollback is `TAG=<old sha> docker compose up -d` on flux. The
-board is then at `http://flux:3010`.
+`.env`, refuses to run with uncommitted changes, copies `compose.yml` to the
+server, sets `TAG=` in the remote `.env`, and verifies the running image
+carries the new tag. Rollback is `TAG=<old sha> docker compose up -d` on the
+server. The board is then at `http://<server>:3010`.
 
-The container joins the `apps-net` network, so Nginx Proxy Manager on flux
-can forward a hostname to `fantasy-helper:3000` directly. The planned
-address is `https://fantasy.rgnr.net` (LAN and VPN only); it is not set up
-yet, so use the port until it is. The app uses only relative URLs, so no
+The container joins the `apps-net` network, so Nginx Proxy Manager on the
+server can forward a hostname to `fantasy-helper:3000` directly. A LAN-only
+hostname for the board is planned but not set up yet, so use the port until
+it is. The app uses only relative URLs, so no
 configuration changes when the proxy goes in front.
 
-Yahoo credentials on flux go in `/home/craig/docker/apps/fantasy-helper/.env`
+Yahoo credentials on the server go in `$DEPLOY_DIR/.env`
 (`YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, optional `YAHOO_LEAGUE_ID`). The
 CLI runs inside the container:
 
 ```bash
-ssh flux 'cd ~/docker/apps/fantasy-helper && docker compose exec -it fantasy-helper fh yahoo auth'
-ssh flux 'cd ~/docker/apps/fantasy-helper && docker compose exec fantasy-helper fh yahoo players --as-projections'
+ssh <server> 'cd ~/docker/apps/fantasy-helper && docker compose exec -it fantasy-helper fh yahoo auth'
+ssh <server> 'cd ~/docker/apps/fantasy-helper && docker compose exec fantasy-helper fh yahoo players --as-projections'
 ```
 
 Or do the Yahoo auth on the Mac and copy `data/yahoo-token.json` to
-`~/docker/data/fantasy-helper/` on flux. Projections can also be uploaded
+`~/docker/data/fantasy-helper/` on the server. Projections can also be uploaded
 from the board's setup screen when none are loaded.
