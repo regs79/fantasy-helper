@@ -1,0 +1,41 @@
+{
+  "name": "default",
+  "teams": 12,
+  "budget": 200,
+  "categories": [
+    "fgm",
+    "fg_pct",
+    "ft_pct",
+    "tpm",
+    "pts",
+    "oreb",
+    "dreb",
+    "ast",
+    "stl",
+    "blk",
+    "ato"
+  ],
+  "rosterSlots": [
+    { "slot": "G", "count": 1 },
+    { "slot": "F", "count": 1 },
+    { "slot": "C", "count": 1 },
+    { "slot": "Util", "count": 3 },
+    { "slot": "BN", "count": 9 }
+  ],
+  "slotEligibility": {
+    "PG": ["PG", "G"],
+    "SG": ["SG", "G"],
+    "G": ["PG", "SG", "G"],
+    "SF": ["SF", "F"],
+    "PF": ["PF", "F"],
+    "F": ["SF", "PF", "F"],
+    "C": ["C"],
+    "Util": ["*"],
+    "BN": ["*"],
+    "IL": ["*"],
+    "IL+": ["*"]
+  },
+  "basis": "total",
+  "gpReference": 82,
+  "poolIterations": 3
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# CLI entry point. Usage: ./fh <command> [options]
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec node --import tsx "$DIR/src/cli.ts" "$@"
