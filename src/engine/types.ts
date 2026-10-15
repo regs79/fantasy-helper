@@ -23,6 +23,8 @@ export interface Projection {
   tov: number;
   /** Where the line came from (csv file name, "yahoo-2025", ...). */
   source?: string;
+  /** Yahoo player key when known, e.g. "466.p.6014". */
+  yahooKey?: string;
   /** Market anchors from Yahoo draft_analysis, when pulled. */
   market?: {
     avgCost?: number;

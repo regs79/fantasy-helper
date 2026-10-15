@@ -14,12 +14,30 @@ export function registerDraftCommands(program: Command): void {
     .description('Start a new draft (writes data/draft.json)')
     .option('-t, --teams <names>', 'comma-separated team names (defaults to Team 1..N)')
     .option('--me <team>', 'which team is mine')
+    .option('--yahoo', 'take team names (and which one is mine) from the Yahoo league')
     .option('-f, --force', 'overwrite an existing draft')
     .action(async (opts) => {
       if (existsSync(paths.draft()) && !opts.force) throw new Error(`${paths.draft()} exists; pass --force to start over`);
       const config = await loadConfig();
-      const teamNames = opts.teams ? String(opts.teams).split(',').map((s) => s.trim()) : undefined;
-      const state = newDraft(config, { teamNames, me: opts.me });
+      let teamNames = opts.teams ? String(opts.teams).split(',').map((s) => s.trim()) : undefined;
+      let me: string | undefined = opts.me;
+      let yahooTeams: { team_key: string; name: string; is_owned_by_current_login: boolean }[] | undefined;
+      let leagueKey: string | undefined;
+      if (opts.yahoo) {
+        const { createClient } = await import('../yahoo/client.js');
+        const { getTeams } = await import('../yahoo/api.js');
+        const { currentLeagueKey } = await import('../yahoo/sync.js');
+        const client = createClient();
+        leagueKey = await currentLeagueKey(client);
+        yahooTeams = await getTeams(client, leagueKey);
+        teamNames = yahooTeams.map((t) => t.name);
+        me ??= yahooTeams.find((t) => t.is_owned_by_current_login)?.name;
+      }
+      const state = newDraft(config, { teamNames, me });
+      if (yahooTeams) {
+        state.yahooLeagueKey = leagueKey;
+        state.teams.forEach((t, i) => (t.yahooTeamKey = yahooTeams![i]!.team_key));
+      }
       await saveDraftState(state);
       console.log(`New draft: ${state.teams.length} teams x $${config.budget}, ${draftSlotsPerTeam(config)} slots each.`);
       console.log(state.teams.map((t) => `${t.id}=${t.name}${t.isMe ? ' (me)' : ''}`).join(', '));
