@@ -7,8 +7,12 @@ no waivers, unlimited moves.
 
 - 12 teams, $200 auction budget each ($2,400 total in the room)
 - Categories (11): FGM, FG%, FT%, 3PM, PTS, OREB, DREB, AST, STL, BLK, A/T
-- Roster slots, IL slots, and weekly lineup rules: still to confirm (read
-  from Yahoo league settings in Phase 0)
+- Roster (15 slots, current): G, F, C, Util, Util, Util, BN x 9
+  - 6 active, 9 bench. Under debate; may move to 13 slots as
+    G, G, F, F, C, Util plus bench. Treat slot layout as config, never
+    hardcode it.
+- IL: 1-2 slots, added after the draft
+- Draft: live auction, roughly 36 hours from 2026-10-15
 
 ## What this category set does to player value
 
@@ -59,7 +63,11 @@ from the usual sites are wrong for this league. Specifics:
   the categories that are close in *this* matchup. Daily greedy optimization
   beats long-term roster hoarding for the last 2-3 roster spots.
 
-## Phases (season starts Oct 20, 2026, so in-season tooling first)
+## Phases
+
+Order flipped on 2026-10-15: the auction draft is imminent, so the draft
+tool is the first deliverable, with the Yahoo plumbing built alongside it.
+In-season tooling follows once the season starts on Oct 20.
 
 ### Phase 0 – Plumbing (first)
 - Register a Yahoo developer app, OAuth2 flow, token refresh, local token
@@ -106,20 +114,42 @@ from the usual sites are wrong for this league. Specifics:
 - Season-long record vs. category win rates to spot systemic weaknesses.
 - Notifications (injury news on your players, lineup not set).
 
-## Tech choices (proposed)
+## Tech choices (decided 2026-10-15)
 
-- Python 3.12: pandas/numpy for the value math, SQLite via sqlite3 or
-  duckdb, `yfpy` or `yahoo_fantasy_api` for Yahoo (both wrap the same
-  REST API; evaluate which handles OAuth refresh and NBA endpoints better,
-  or call the REST API directly with `requests-oauthlib`).
-- CLI first (`typer`), since most daily use is "what should I stream
-  today". Add a FastAPI + HTMX web page later for the draft board, which
-  benefits from a live-updating view.
-- Projections and schedule as swappable adapters so sources can change.
+- Node 22 + TypeScript (owner is a Node developer). ESM, `tsx` for dev,
+  `vitest` for tests.
+- Yahoo: call the REST API directly with the standard OAuth2 authorization
+  code flow (Yahoo supports `oob` redirect for CLI use). Keep the client
+  thin; read-only first. Read stat categories and roster slots from league
+  settings rather than hardcoding Yahoo stat ids.
+- Storage: JSON files for draft state and cached Yahoo pulls at first;
+  SQLite (better-sqlite3) when in-season history accumulates.
+- Draft board: small local web server (Fastify) serving one page with
+  vanilla JS polling JSON endpoints. A live auction is easier to follow in
+  a browser than a terminal table. CLI commands for everything else.
+- Projections: bring-your-own CSV with a flexible column mapper, plus
+  Yahoo last-season stats as the fallback and as the source of OREB/DREB
+  splits when a projection source only gives total rebounds.
+- Yahoo `draft_analysis` (average auction cost, percent drafted) is market
+  data worth pulling as a price anchor and sanity check.
+- Manual pick entry must always work as a fallback in case the draft
+  results endpoint lags or mock drafts are not exposed via the API.
+
+## Draft-day minimum (what must exist before the auction)
+
+1. Load projections, compute 11-cat values with volume-weighted ratios,
+   punt toggles, and dollar prices for 12 x $200 with the current slot
+   layout.
+2. Draft board: remaining players with live inflation-adjusted prices,
+   per-team remaining budget and open slots, my roster's category profile.
+3. Pick entry: fast manual entry (player, team, price) with undo; Yahoo
+   draft-results sync if the API cooperates.
+4. Test on a Yahoo mock draft if it is reachable through the API; if not,
+   test with manual entry against a mock draft in the Yahoo UI.
 
 ## Open questions
 
-1. Roster slots and IL slots?
-2. Has this year's draft already happened?
-3. Yahoo Dev app registered? Any preference for Python vs. TypeScript?
-4. Preferred projection source, or build from stats only?
+1. Preferred projection source for a CSV, or rely on Yahoo last-season
+   stats for the first pass?
+2. Final roster layout (15 slots vs. 13 with G, G, F, F, C, Util)?
+3. Does the Yahoo API expose mock drafts? Test once the app is registered.
